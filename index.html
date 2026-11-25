@@ -850,7 +850,7 @@ async function generate(mode) {
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       const blob  = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const fd    = new FormData();
-      fd.append('image', blob, filename);
+      fd.append('file', blob, filename);
 
       const url = `https://academic-api.odpay.in/api/uploadSheet/examRegistration?entity=${getEntity()}&session=${encodeURIComponent(getSess())}`;
       const r = await fetch(url, { method: 'POST', headers: { Authorization: getToken() }, body: fd });
@@ -925,7 +925,7 @@ async function uploadExcel() {
   setUploadStatus('File upload हो रही है…');
 
   const fd = new FormData();
-  fd.append('image', selectedFile, selectedFile.name);
+  fd.append('file', selectedFile, selectedFile.name);
 
   const url = `https://academic-api.odpay.in/api/uploadSheet/examRegistration?entity=${getEntity()}&session=${encodeURIComponent(getSess())}`;
 
