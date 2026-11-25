@@ -78,8 +78,11 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 1.125rem;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.card-head {
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
 }
 .card-head {
   align-items: center;
@@ -226,6 +229,80 @@ select:disabled, input:disabled {
   padding-left: 1.25rem;
 }
 
+/* Stream custom dropdown */
+.sdd { position: relative; }
+.sdd-input-wrap { position: relative; }
+.sdd-input-wrap input {
+  appearance: none; -webkit-appearance: none;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 0.5625rem 2rem 0.5625rem 0.8125rem;
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+}
+.sdd-input-wrap input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: none;
+}
+.sdd-input-wrap input:disabled { cursor: not-allowed; opacity: 0.42; }
+.sdd-arrow {
+  pointer-events: none;
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); font-size: 0.625rem;
+}
+.sdd-clear {
+  background: none; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 1.1rem; line-height: 1;
+  padding: 0 0.25rem;
+  position: absolute; right: 1.5rem; top: 50%; transform: translateY(-50%);
+}
+.sdd-clear:hover { color: var(--error); }
+.sdd-list {
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 7px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.14);
+  left: 0; right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 999;
+}
+.sdd-item {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  transition: background .1s;
+}
+.sdd-item:hover { background: var(--accent-bg); }
+.sdd-item.selected { background: color-mix(in srgb, var(--accent-bg) 80%, var(--surface)); }
+.sdd-name {
+  flex: 1; font-size: 0.875rem; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sdd-name.c-high { color: var(--error); font-weight: 600; }
+.sdd-name.c-med  { color: #D97706; font-weight: 600; }
+.sdd-name.c-low  { color: var(--success); }
+.sdd-cnt {
+  border-radius: 999px; flex-shrink: 0;
+  font-size: 0.6875rem; font-weight: 700;
+  padding: 0.125rem 0.45rem; white-space: nowrap;
+}
+.sdd-cnt.c-high { background: var(--error-bg); color: var(--error); }
+.sdd-cnt.c-med  { background: #FFFBEB; color: #D97706; }
+.sdd-cnt.c-low  { background: var(--success-bg); color: var(--success); }
+.sdd-empty { color: var(--text-muted); font-size: 0.8125rem; padding: 0.75rem; text-align: center; }
+
 /* Spinner */
 .spin {
   animation: rot .7s linear infinite;
@@ -279,11 +356,16 @@ select:disabled, input:disabled {
             <option value="">— Loading… —</option>
           </select>
         </div>
-        <div class="fg">
+        <div class="fg sdd" id="streamWrap">
           <label>Stream *</label>
-          <select id="stream" disabled onchange="onStreamChange()">
-            <option value="">— Select course first —</option>
-          </select>
+          <div class="sdd-input-wrap">
+            <input type="text" id="streamInput" placeholder="— Select course first —"
+              disabled autocomplete="off"
+              oninput="onStreamSearch()" onfocus="openStreamDD()">
+            <button class="sdd-clear" id="streamClear" onclick="clearStream()" hidden>×</button>
+            <span class="sdd-arrow">▼</span>
+          </div>
+          <div class="sdd-list" id="streamList" hidden></div>
         </div>
         <div class="fg">
           <label>Batch *</label>
@@ -332,6 +414,9 @@ const CONFIG = {
 };
 
 let courseData = [];
+let currentStreamList = [];   // stream names for selected course
+let selectedStreamVal = '';   // currently selected stream
+let pendingCounts = {};       // stream → pending student count (loaded async)
 
 const $ = id => document.getElementById(id);
 
@@ -400,32 +485,56 @@ async function loadData() {
     setStatus(
       `✓ ${calendars.length} exam calendars · ${courses.length} courses loaded`, 'ok');
     checkReady();
+
+    // Load pending counts silently in background for stream color-coding
+    loadPendingCounts();
   } catch (e) {
     setStatus('Error: ' + e.message, 'err');
   }
 }
 
+async function loadPendingCounts() {
+  try {
+    const r = await fetch(
+      'https://academic-api.odpay.in/api/pendingExamRegistration/examRegistration',
+      { method: 'POST', headers: { Authorization: getToken(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity: getEntity(), session: getSess() }) }
+    );
+    if (!r.ok) return;
+    const data = await r.json();
+    const arr = Array.isArray(data) ? data : (data.data || []);
+    pendingCounts = {};
+    arr.forEach(s => { pendingCounts[s.stream] = (pendingCounts[s.stream] || 0) + 1; });
+    // Re-render dropdown if already open
+    if (!$('streamList').hidden) buildStreamList($('streamInput').value);
+  } catch (_) { /* silent */ }
+}
+
 /* ── Cascade: Course → Stream → Batch ───────────────────── */
 function onCourseChange() {
   const courseName = $('course').value;
-  const streamSel  = $('stream');
   const batchSel   = $('batch');
 
-  streamSel.innerHTML = '<option value="">— Select Stream —</option>';
-  batchSel.innerHTML  = '<option value="">— Select Batch —</option>';
-  streamSel.disabled  = true;
-  batchSel.disabled   = true;
+  // Reset stream
+  currentStreamList = [];
+  clearStream();
+  $('streamInput').disabled = true;
+  $('streamInput').placeholder = '— Select course first —';
+
+  batchSel.innerHTML = '<option value="">— Select Stream first —</option>';
+  batchSel.disabled  = true;
 
   if (!courseName) { checkReady(); return; }
   const course = courseData.find(c => c.name === courseName);
   if (!course) { checkReady(); return; }
 
-  (course.stream || []).forEach(s => streamSel.appendChild(new Option(s, s)));
-  streamSel.disabled = false;
+  currentStreamList = course.stream || [];
+  $('streamInput').disabled = false;
+  $('streamInput').placeholder = 'Search stream…';
   checkReady();
 }
 
-function onStreamChange() {
+function onStreamSelected(streamName) {
   const courseName = $('course').value;
   const batchSel   = $('batch');
 
@@ -445,10 +554,81 @@ function checkReady() {
     $('examCalendar').value &&
     $('examType').value &&
     $('course').value &&
-    $('stream').value &&
+    selectedStreamVal &&
     $('batch').value;
   $('genBtn').disabled = !ok;
 }
+
+/* ── Stream dropdown helpers ─────────────────────────────── */
+function streamTier(cnt) {
+  if (!cnt) return '';
+  if (cnt >= 50) return 'high';
+  if (cnt >= 20) return 'med';
+  return 'low';
+}
+
+function buildStreamList(query) {
+  const list = $('streamList');
+  const q = (query || '').toLowerCase().trim();
+  const items = currentStreamList.filter(s => !q || s.toLowerCase().includes(q));
+
+  if (!items.length) {
+    list.innerHTML = '<div class="sdd-empty">No matching streams</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(name => {
+    const cnt  = pendingCounts[name] || 0;
+    const tier = streamTier(cnt);
+    const isSel = name === selectedStreamVal;
+    const cntBadge = cnt
+      ? `<span class="sdd-cnt c-${tier}">${cnt} pending</span>`
+      : '';
+    return `<div class="sdd-item${isSel ? ' selected' : ''}" onclick="selectStream(${JSON.stringify(name)})">
+      <span class="sdd-name${tier ? ' c-' + tier : ''}">${esc(name)}</span>
+      ${cntBadge}
+    </div>`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function openStreamDD() {
+  if ($('streamInput').disabled) return;
+  buildStreamList($('streamInput').value);
+  $('streamList').hidden = false;
+}
+
+function onStreamSearch() {
+  buildStreamList($('streamInput').value);
+  $('streamList').hidden = false;
+  if (!$('streamInput').value) clearStream();
+}
+
+function selectStream(name) {
+  selectedStreamVal = name;
+  $('streamInput').value = name;
+  $('streamClear').hidden = false;
+  $('streamList').hidden = true;
+  onStreamSelected(name);
+}
+
+function clearStream() {
+  selectedStreamVal = '';
+  $('streamInput').value = '';
+  $('streamClear').hidden = true;
+  $('streamList').hidden = true;
+  $('batch').innerHTML = '<option value="">— Select Stream first —</option>';
+  $('batch').disabled = true;
+  checkReady();
+}
+
+document.addEventListener('click', e => {
+  const wrap = $('streamWrap');
+  if (wrap && !wrap.contains(e.target)) $('streamList').hidden = true;
+});
 
 /* ── Fetch all students (paginated) ─────────────────────── */
 async function fetchAllStudents(course, stream, batch) {
@@ -489,7 +669,7 @@ async function generate() {
   const examCalName    = calSel.options[calSel.selectedIndex]?.dataset?.name || '';
   const examType       = $('examType').value;
   const course         = $('course').value;
-  const stream         = $('stream').value;
+  const stream         = selectedStreamVal;
   const batch          = $('batch').value;
   const d = new Date();
   const today = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
