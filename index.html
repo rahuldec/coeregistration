@@ -138,32 +138,6 @@ select:disabled, input:disabled {
   cursor: not-allowed;
   opacity: 0.42;
 }
-textarea {
-  font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
-  min-height: 76px;
-  resize: vertical;
-}
-.hint {
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  margin-top: 0.1875rem;
-}
-
-.btn-sm {
-  background: var(--accent-bg);
-  border: 1.5px solid var(--accent);
-  border-radius: 7px;
-  color: var(--accent);
-  cursor: pointer;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  padding: 0.4375rem 1rem;
-  transition: background .15s;
-}
-.btn-sm:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.btn-sm:disabled { opacity: .5; cursor: not-allowed; }
 
 .btn-primary {
   align-items: center;
@@ -238,15 +212,7 @@ textarea {
 }
 @keyframes rot { to { transform: rotate(360deg); } }
 
-.section-note {
-  background: var(--accent-bg);
-  border-left: 3px solid var(--accent);
-  border-radius: 0 6px 6px 0;
-  color: var(--accent);
-  font-size: 0.8125rem;
-  margin-bottom: 1.25rem;
-  padding: 0.6875rem 0.9375rem;
-}
+
 </style>
 </head>
 <body>
@@ -258,44 +224,17 @@ textarea {
 
 <div class="container">
 
-  <!-- Step 1: Config -->
+  <!-- Step 1: Filters -->
   <div class="card">
     <div class="card-head">
-      <span>⚙️</span> Step 1 — Configuration
-    </div>
-    <div class="card-body">
-      <div class="form-grid">
-        <div class="fg">
-          <label>Entity ID</label>
-          <input type="text" id="entityId" value="69ca556be787fb0010ffab1f">
-        </div>
-        <div class="fg">
-          <label>Session</label>
-          <input type="text" id="session" value="2026-27 Odd">
-        </div>
-        <div class="fg full">
-          <label>JWT Token</label>
-          <textarea id="token">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpbXSwicXVhbGlmaWNhdGlvbnMiOltdLCJ3b3JrRXhwZXJpZW5jZSI6W10sIm1vYmlsZSI6Ijg3OTg5ODk4OTgiLCJwYXNzd29yZCI6Ijg3OTg5ODk4OTgiLCJuYW1lIjoiVXRpbGl0eSIsInBlcm1pc3Npb25Hcm91cE5hbWUiOiJVdGlsaXR5IiwiZW50aXR5R3JvdXAiOlt7Im5hbWUiOiJTYW5za2FyYW0gVW5pdmVyc2l0eSIsImVudGl0eVR5cGUiOiJ1bml2ZXJzaXR5IiwibG9nbyI6Imh0dHBzOi8vb2tpZWRva2llLWVycC1pbWFnZXMuczMuYXAtc291dGgtMS5hbWF6b25hd3MuY29tL1NVLzIwMjYvMDMvbG9nby8yYjI4OTk4ZTg5NTEzMmFlNzc2NS1TYW5za2FyYW1fVW5pdmVyc2l0eS1sb2dvLmpwZWciLCJxYWMiOiJTVSIsImRpc3BsYXlOYW1lIjoiU2Fuc2thcmFtIFVuaXZlcnNpdHkiLCJlbnRpdHlJZCI6IjY5Y2E1NTZiZTc4N2ZiMDAxMGZmYWIxZiJ9XSwiZW50aXR5IjoiNjljYTU1NmJlNzg3ZmIwMDEwZmZhYjFmIiwic2Vzc2lvbiI6IjIwMjYtMjcgT2RkIiwic3RhdHVzIjp0cnVlLCJfaWQiOiI2YjA2ZGUzYTMwNTM0ZjAwMGZkMWJiNGMiLCJ0b2tlblZlcnNpb24iOjEsImlhdCI6MTc5NTYxMjIxOH0.eS1Kf-ErErSztFKK0j0Dv4P3OX6H0WSeZZOsK3nNi-o</textarea>
-          <span class="hint">Token is sent as Authorization header (without Bearer prefix)</span>
-        </div>
-        <div class="fg full">
-          <button class="btn-sm" id="loadBtn" onclick="loadData()">🔄 Load Dropdowns</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Step 2: Filters -->
-  <div class="card">
-    <div class="card-head">
-      <span>🔍</span> Step 2 — Select Filters
+      <span>🔍</span> Select Filters
     </div>
     <div class="card-body">
       <div class="form-grid">
         <div class="fg">
           <label>Exam Calendar *</label>
           <select id="examCalendar" disabled onchange="checkReady()">
-            <option value="">— Load dropdowns first —</option>
+            <option value="">— Loading… —</option>
           </select>
         </div>
         <div class="fg">
@@ -310,7 +249,7 @@ textarea {
         <div class="fg">
           <label>Course *</label>
           <select id="course" disabled onchange="onCourseChange()">
-            <option value="">— Load dropdowns first —</option>
+            <option value="">— Loading… —</option>
           </select>
         </div>
         <div class="fg">
@@ -329,9 +268,9 @@ textarea {
     </div>
   </div>
 
-  <!-- Step 3: Generate -->
+  <!-- Step 2: Generate -->
   <div class="card">
-    <div class="card-head"><span>📥</span> Step 3 — Generate Excel</div>
+    <div class="card-head"><span>📥</span> Generate Excel</div>
     <div class="card-body">
       <button class="btn-primary" id="genBtn" disabled onclick="generate()">
         ⬇ Generate &amp; Download Excel
@@ -355,13 +294,19 @@ const APIS = {
   student: 'https://others-api.odpay.in/api/list/student',
 };
 
+const CONFIG = {
+  entity: '69ca556be787fb0010ffab1f',
+  session: '2026-27 Odd',
+  token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpbXSwicXVhbGlmaWNhdGlvbnMiOltdLCJ3b3JrRXhwZXJpZW5jZSI6W10sIm1vYmlsZSI6Ijg3OTg5ODk4OTgiLCJwYXNzd29yZCI6Ijg3OTg5ODk4OTgiLCJuYW1lIjoiVXRpbGl0eSIsInBlcm1pc3Npb25Hcm91cE5hbWUiOiJVdGlsaXR5IiwiZW50aXR5R3JvdXAiOlt7Im5hbWUiOiJTYW5za2FyYW0gVW5pdmVyc2l0eSIsImVudGl0eVR5cGUiOiJ1bml2ZXJzaXR5IiwibG9nbyI6Imh0dHBzOi8vb2tpZWRva2llLWVycC1pbWFnZXMuczMuYXAtc291dGgtMS5hbWF6b25hd3MuY29tL1NVLzIwMjYvMDMvbG9nby8yYjI4OTk4ZTg5NTEzMmFlNzc2NS1TYW5za2FyYW1fVW5pdmVyc2l0eS1sb2dvLmpwZWciLCJxYWMiOiJTVSIsImRpc3BsYXlOYW1lIjoiU2Fuc2thcmFtIFVuaXZlcnNpdHkiLCJlbnRpdHlJZCI6IjY5Y2E1NTZiZTc4N2ZiMDAxMGZmYWIxZiJ9XSwiZW50aXR5IjoiNjljYTU1NmJlNzg3ZmIwMDEwZmZhYjFmIiwic2Vzc2lvbiI6IjIwMjYtMjcgT2RkIiwic3RhdHVzIjp0cnVlLCJfaWQiOiI2YjA2ZGUzYTMwNTM0ZjAwMGZkMWJiNGMiLCJ0b2tlblZlcnNpb24iOjEsImlhdCI6MTc5NTYxMjIxOH0.eS1Kf-ErErSztFKK0j0Dv4P3OX6H0WSeZZOsK3nNi-o',
+};
+
 let courseData = [];
 
 const $ = id => document.getElementById(id);
 
-function getToken()  { return $('token').value.trim(); }
-function getEntity() { return $('entityId').value.trim(); }
-function getSess()   { return $('session').value.trim(); }
+function getToken()  { return CONFIG.token; }
+function getEntity() { return CONFIG.entity; }
+function getSess()   { return CONFIG.session; }
 
 async function apiFetch(url, opts = {}) {
   const r = await fetch(url, {
@@ -396,11 +341,6 @@ function setProgress(pct, label) {
 
 /* ── Load dropdowns ──────────────────────────────────────── */
 async function loadData() {
-  if (!getEntity() || !getSess() || !getToken()) {
-    alert('Entity ID, Session और Token तीनों भरें।');
-    return;
-  }
-  $('loadBtn').disabled = true;
   setStatus('Exam calendars और courses load हो रहे हैं…');
 
   try {
@@ -431,8 +371,6 @@ async function loadData() {
     checkReady();
   } catch (e) {
     setStatus('Error: ' + e.message, 'err');
-  } finally {
-    $('loadBtn').disabled = false;
   }
 }
 
@@ -592,6 +530,8 @@ async function generate() {
     $('genBtn').disabled = false;
   }
 }
+
+window.addEventListener('DOMContentLoaded', loadData);
 </script>
 </body>
 </html>
