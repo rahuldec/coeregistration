@@ -863,7 +863,8 @@ async function generate(mode) {
         setStatus(`✓ Upload successful! ${data.message || data.msg || rawText || ''}`, 'ok');
       } else {
         setProgress(null);
-        setStatus(`Upload failed (${r.status}): ${data.message || data.msg || rawText || 'Unknown error'}`, 'err');
+        const detail = data.errors ? JSON.stringify(data.errors) : (data.message || data.msg || rawText || 'Unknown error');
+        setStatus(`Upload failed (${r.status}): ${detail}`, 'err');
       }
     }
   } catch (e) {
