@@ -526,7 +526,7 @@ function setProgress(pct, label) {
 
 /* ── Load dropdowns ──────────────────────────────────────── */
 async function loadData() {
-  setStatus('Exam calendars और courses load हो रहे हैं…');
+  setStatus('Loading exam calendars and courses…');
 
   try {
     const [calendars, courses] = await Promise.all([
@@ -653,15 +653,20 @@ async function uploadBatch(stream, batch, btn) {
     if (!students.length) { btn.textContent = '✗ No students'; btn.style.color = 'var(--error)'; return; }
 
     const rows = [];
+    let skipped = 0;
     for (const s of students) {
-      const subjects = s.subjects || [];
-      if (!subjects.length) {
-        rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': '', registrationDate: today });
-      } else {
-        for (const sub of subjects) {
-          rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': sub.code || '', registrationDate: today });
-        }
+      const subjects = (s.subjects || []).filter(sub => sub.code);
+      if (!subjects.length) { skipped++; continue; }
+      for (const sub of subjects) {
+        rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': sub.code, registrationDate: today });
       }
+    }
+
+    if (!rows.length) {
+      btn.textContent = '✗ No subjects';
+      btn.classList.add('pend-upload-err');
+      btn.title = `All ${students.length} students have no subjects assigned`;
+      return;
     }
 
     const wb = XLSX.utils.book_new();
@@ -683,7 +688,8 @@ async function uploadBatch(stream, batch, btn) {
     try { data = JSON.parse(rawText); } catch(_) {}
 
     if (r.ok) {
-      btn.textContent = '✓ Done';
+      btn.textContent = skipped ? `✓ Done (${skipped} skipped)` : '✓ Done';
+      btn.title = skipped ? `${skipped} student(s) had no subjects and were skipped` : '';
       btn.classList.add('pend-upload-done');
     } else {
       const detail = data.errors ? data.errors[0] : (data.message || data.msg || rawText || 'Error');
@@ -851,7 +857,7 @@ async function fetchAllStudents(course, stream, batch) {
 
     setProgress(
       total ? Math.min(95, Math.round((all.length / total) * 100)) : 50,
-      `Students fetch हो रहे हैं… ${all.length} / ${total}`
+      `Fetching students… ${all.length} / ${total}`
     );
 
     if (!rows.length || all.length >= total) break;
@@ -874,32 +880,31 @@ async function generate(mode) {
   $('uploadDirectBtn').disabled = true;
   $('downloadBtn').disabled = true;
   $('noSubjectWarn').hidden = true;
-  setStatus('Students fetch हो रहे हैं…');
+  setStatus('Fetching students…');
   setProgress(0, '');
 
   try {
     const { students } = await fetchAllStudents(course, stream, batch);
 
     if (!students.length) {
-      setStatus('इस selection में कोई students नहीं मिले।', 'err');
+      setStatus('No students found for this selection.', 'err');
       setProgress(null);
       checkReady();
       return;
     }
 
-    setStatus('Excel file बन रही है…');
-    setProgress(97, 'Rows generate हो रहे हैं…');
+    setStatus('Building Excel file…');
+    setProgress(97, 'Generating rows…');
 
     const rows = [];
     const noSubjectStudents = [];
     for (const s of students) {
-      const subjects = s.subjects || [];
+      const subjects = (s.subjects || []).filter(sub => sub.code);
       if (!subjects.length) {
         noSubjectStudents.push(s.regNo);
-        rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': '', registrationDate: today });
       } else {
         for (const sub of subjects) {
-          rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': sub.code || '', registrationDate: today });
+          rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': sub.code, registrationDate: today });
         }
       }
     }
@@ -923,10 +928,10 @@ async function generate(mode) {
     if (mode === 'download') {
       XLSX.writeFile(wb, filename);
       setProgress(100, `${rows.length} rows · ${students.length} students`);
-      setStatus(`✓ Excel download हो गई — ${rows.length} rows (${students.length} students)`, 'ok');
+      setStatus(`✓ Excel downloaded — ${rows.length} rows (${students.length} students)`, 'ok');
     } else {
       // Upload directly to system
-      setStatus('System पर upload हो रहा है…');
+      setStatus('Uploading to system…');
       setProgress(98, 'Uploading…');
 
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
