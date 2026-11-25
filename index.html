@@ -854,14 +854,16 @@ async function generate(mode) {
 
       const url = `https://academic-api.odpay.in/api/uploadSheet/examRegistration?entity=${getEntity()}&session=${encodeURIComponent(getSess())}`;
       const r = await fetch(url, { method: 'POST', headers: { Authorization: getToken() }, body: fd });
-      const data = await r.json().catch(() => ({}));
+      const rawText = await r.text();
+      let data = {};
+      try { data = JSON.parse(rawText); } catch(_) {}
 
       if (r.ok) {
         setProgress(100, `${rows.length} rows · ${students.length} students`);
-        setStatus(`✓ Upload successful! ${data.message || data.msg || ''}`, 'ok');
+        setStatus(`✓ Upload successful! ${data.message || data.msg || rawText || ''}`, 'ok');
       } else {
         setProgress(null);
-        setStatus(`Upload failed (${r.status}): ${data.message || data.msg || 'Unknown error'}`, 'err');
+        setStatus(`Upload failed (${r.status}): ${data.message || data.msg || rawText || 'Unknown error'}`, 'err');
       }
     }
   } catch (e) {
