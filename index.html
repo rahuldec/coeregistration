@@ -460,7 +460,8 @@ async function generate() {
   const course         = $('course').value;
   const stream         = $('stream').value;
   const batch          = $('batch').value;
-  const today          = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const d = new Date();
+  const today = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
 
   $('genBtn').disabled = true;
   setStatus('Students fetch हो रहे हैं…');
