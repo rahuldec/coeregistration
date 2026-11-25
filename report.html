@@ -170,6 +170,58 @@ select:focus, input:focus { border-color: var(--accent); outline: none; }
 }
 .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
 
+/* Stream custom dropdown */
+.stream-dd { position: relative; }
+.stream-dd-input-wrap { position: relative; }
+.stream-dd-input-wrap input { padding-right: 2rem; }
+.stream-dd-clear {
+  background: none; border: none;
+  color: var(--text-muted); cursor: pointer;
+  font-size: 1.1rem; line-height: 1;
+  padding: 0 0.25rem;
+  position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+}
+.stream-dd-clear:hover { color: var(--error); }
+.stream-dd-list {
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 7px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.13);
+  left: 0; right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 200;
+}
+.stream-dd-item {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  transition: background .1s;
+}
+.stream-dd-item:hover, .stream-dd-item.active { background: var(--accent-bg); }
+.stream-dd-item.selected { background: color-mix(in srgb, var(--accent-bg) 70%, var(--surface)); }
+.stream-dd-name {
+  flex: 1; font-size: 0.8125rem; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stream-dd-name.c-high { color: var(--error); font-weight: 600; }
+.stream-dd-name.c-med  { color: var(--warn); font-weight: 600; }
+.stream-dd-name.c-low  { color: var(--success); }
+.stream-cnt {
+  border-radius: 999px; flex-shrink: 0;
+  font-size: 0.6875rem; font-weight: 700;
+  padding: 0.125rem 0.45rem; white-space: nowrap;
+}
+.stream-cnt.c-high { background: var(--error-bg); color: var(--error); }
+.stream-cnt.c-med  { background: var(--warn-bg);  color: var(--warn); }
+.stream-cnt.c-low  { background: var(--success-bg); color: var(--success); }
+.stream-dd-empty { color: var(--text-muted); font-size: 0.8125rem; padding: 0.75rem; text-align: center; }
+
 /* Table */
 .tbl-wrap { overflow-x: auto; }
 table {
@@ -295,9 +347,14 @@ tr.group-stream td { background: color-mix(in srgb, var(--accent-bg) 25%, var(--
             <option value="">All Courses</option>
           </select>
         </div>
-        <div class="fg">
-          <label>Stream (search)</label>
-          <input type="text" id="fStream" placeholder="Type to search stream…" oninput="applyFilters()">
+        <div class="fg stream-dd" id="streamDropWrap">
+          <label>Stream</label>
+          <div class="stream-dd-input-wrap">
+            <input type="text" id="fStream" placeholder="Search streams…"
+              oninput="onStreamSearch()" onfocus="openStreamDD()" autocomplete="off">
+            <button class="stream-dd-clear" id="streamClearBtn" onclick="clearStreamFilter()" hidden>×</button>
+          </div>
+          <div class="stream-dd-list" id="streamDDList" hidden></div>
         </div>
         <div class="fg">
           <label>Batch</label>
@@ -350,8 +407,10 @@ const CONFIG = {
 
 const $ = id => document.getElementById(id);
 
-let allData = [];   // raw student array
-let grouped = [];   // [{course, stream, batch, section, count}]
+let allData = [];        // raw student array
+let grouped = [];        // [{course, stream, batch, section, count}]
+let streamCounts = {};   // stream → total pending count
+let selectedStream = ''; // currently selected stream value
 
 async function loadData() {
   try {
@@ -384,10 +443,12 @@ async function loadData() {
 
 function buildGrouped() {
   const map = {};
+  streamCounts = {};
   for (const s of allData) {
     const key = `${s.course}||${s.stream}||${s.batch}||${s.section}`;
     if (!map[key]) map[key] = { course: s.course, stream: s.stream, batch: s.batch, section: s.section, count: 0 };
     map[key].count++;
+    streamCounts[s.stream] = (streamCounts[s.stream] || 0) + 1;
   }
   grouped = Object.values(map).sort((a, b) => {
     if (a.course !== b.course) return a.course.localeCompare(b.course);
@@ -396,6 +457,79 @@ function buildGrouped() {
     return (a.section || '').localeCompare(b.section || '');
   });
 }
+
+/* ── Stream color tier ───────────────────────────────────── */
+function streamTier(count) {
+  if (count >= 50) return 'high';
+  if (count >= 20) return 'med';
+  return 'low';
+}
+
+/* ── Stream dropdown ─────────────────────────────────────── */
+function buildStreamList(query) {
+  const list = $('streamDDList');
+  const streams = Object.entries(streamCounts)
+    .filter(([s]) => !query || s.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => b[1] - a[1]);  // sort by count desc
+
+  if (!streams.length) {
+    list.innerHTML = '<div class="stream-dd-empty">No matching streams</div>';
+    return;
+  }
+
+  let html = '';
+  if (!query) {
+    html += `<div class="stream-dd-item${selectedStream === '' ? ' selected' : ''}" onclick="selectStream('')">
+      <span class="stream-dd-name">All Streams</span>
+    </div>`;
+  }
+  for (const [name, cnt] of streams) {
+    const tier = streamTier(cnt);
+    const isSel = selectedStream === name;
+    html += `<div class="stream-dd-item${isSel ? ' selected' : ''}" onclick="selectStream(${JSON.stringify(name)})">
+      <span class="stream-dd-name c-${tier}">${esc(name)}</span>
+      <span class="stream-cnt c-${tier}">${cnt}</span>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+function openStreamDD() {
+  buildStreamList($('fStream').value);
+  $('streamDDList').hidden = false;
+}
+
+function onStreamSearch() {
+  const q = $('fStream').value;
+  buildStreamList(q);
+  $('streamDDList').hidden = false;
+  if (!q) {
+    selectedStream = '';
+    $('streamClearBtn').hidden = true;
+    applyFilters();
+  }
+}
+
+function selectStream(name) {
+  selectedStream = name;
+  $('fStream').value = name;
+  $('streamClearBtn').hidden = !name;
+  $('streamDDList').hidden = true;
+  applyFilters();
+}
+
+function clearStreamFilter() {
+  selectedStream = '';
+  $('fStream').value = '';
+  $('streamClearBtn').hidden = true;
+  applyFilters();
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const wrap = $('streamDropWrap');
+  if (wrap && !wrap.contains(e.target)) $('streamDDList').hidden = true;
+});
 
 function unique(arr, key) {
   return [...new Set(arr.map(x => x[key]).filter(Boolean))].sort();
@@ -414,6 +548,8 @@ function populateFilters() {
 
   const fSection = $('fSection');
   sections.forEach(s => fSection.appendChild(new Option(s, s)));
+
+  // stream dropdown built on demand — no static populate needed
 }
 
 function updateSummary(total) {
@@ -425,15 +561,14 @@ function updateSummary(total) {
 
 function applyFilters() {
   const fCourse  = $('fCourse').value.toLowerCase();
-  const fStream  = $('fStream').value.toLowerCase().trim();
   const fBatch   = $('fBatch').value.toLowerCase();
   const fSection = $('fSection').value.toLowerCase();
 
   const filtered = grouped.filter(r => {
-    if (fCourse  && r.course.toLowerCase()  !== fCourse)  return false;
-    if (fStream  && !r.stream.toLowerCase().includes(fStream)) return false;
-    if (fBatch   && r.batch.toLowerCase()   !== fBatch)   return false;
-    if (fSection && (r.section || '').toLowerCase() !== fSection) return false;
+    if (fCourse     && r.course.toLowerCase() !== fCourse)                 return false;
+    if (selectedStream && r.stream !== selectedStream)                     return false;
+    if (fBatch      && r.batch.toLowerCase()  !== fBatch)                  return false;
+    if (fSection    && (r.section || '').toLowerCase() !== fSection)       return false;
     return true;
   });
 
@@ -442,10 +577,9 @@ function applyFilters() {
 
 function resetFilters() {
   $('fCourse').value  = '';
-  $('fStream').value  = '';
   $('fBatch').value   = '';
   $('fSection').value = '';
-  renderTable(grouped);
+  clearStreamFilter();
 }
 
 function renderTable(rows) {
