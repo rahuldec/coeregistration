@@ -418,19 +418,7 @@ select:disabled, input:disabled {
     </div>
   </div>
 
-  <!-- Step 2: Pending Summary -->
-  <div class="card" id="pendingCard">
-    <div class="card-head" onclick="togglePendingCard()" style="cursor:pointer;user-select:none">
-      <span>📊</span> Pending Registrations
-      <span id="pendingTotal" style="margin-left:auto;font-size:0.8rem;font-weight:400;color:var(--text-muted)">Loading…</span>
-      <span id="pendingChevron" style="margin-left:0.5rem;font-size:0.7rem;transition:transform .2s">▼</span>
-    </div>
-    <div class="card-body" id="pendingBody">
-      <div id="pendingTable"></div>
-    </div>
-  </div>
-
-  <!-- Step 3: Generate -->
+  <!-- Step 2: Generate -->
   <div class="card" style="overflow:visible">
     <div class="card-head"><span>📥</span> Generate Excel</div>
     <div class="card-body">
@@ -451,6 +439,18 @@ select:disabled, input:disabled {
         <div class="warn-head">⚠ No subjects assigned for these students</div>
         <ul id="noSubjectList"></ul>
       </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Pending Summary -->
+  <div class="card" id="pendingCard">
+    <div class="card-head" onclick="togglePendingCard()" style="cursor:pointer;user-select:none">
+      <span>📊</span> Pending Registrations
+      <span id="pendingTotal" style="margin-left:auto;font-size:0.8rem;font-weight:400;color:var(--text-muted)">Loading…</span>
+      <span id="pendingChevron" style="margin-left:0.5rem;font-size:0.7rem;transition:transform .2s">▼</span>
+    </div>
+    <div class="card-body" id="pendingBody">
+      <div id="pendingTable"></div>
     </div>
   </div>
 
