@@ -486,7 +486,7 @@ function buildStreamList(query) {
   for (const [name, cnt] of streams) {
     const tier = streamTier(cnt);
     const isSel = selectedStream === name;
-    html += `<div class="stream-dd-item${isSel ? ' selected' : ''}" onclick="selectStream(${JSON.stringify(name)})">
+    html += `<div class="stream-dd-item${isSel ? ' selected' : ''}" onclick='selectStream(${JSON.stringify(name)})'>
       <span class="stream-dd-name c-${tier}">${esc(name)}</span>
       <span class="stream-cnt c-${tier}">${cnt}</span>
     </div>`;

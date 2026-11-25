@@ -699,7 +699,7 @@ function buildStreamList(query) {
     const cntBadge = cnt
       ? `<span class="sdd-cnt c-${tier}">${cnt} pending</span>`
       : '';
-    return `<div class="sdd-item${isSel ? ' selected' : ''}" onclick="selectStream(${JSON.stringify(name)})">
+    return `<div class="sdd-item${isSel ? ' selected' : ''}" onclick='selectStream(${JSON.stringify(name)})'>
       <span class="sdd-name${tier ? ' c-' + tier : ''}">${esc(name)}</span>
       ${cntBadge}
     </div>`;
