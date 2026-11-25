@@ -199,6 +199,33 @@ select:disabled, input:disabled {
 }
 .progress-wrap[hidden] { display: none; }
 
+.no-subject-warn {
+  background: #FFFBEB;
+  border: 1.5px solid #F59E0B;
+  border-radius: 8px;
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+}
+@media (prefers-color-scheme: dark) {
+  .no-subject-warn { background: #1C1708; border-color: #B45309; }
+  .no-subject-warn .warn-head { color: #FCD34D; }
+  .no-subject-warn ul { color: #FDE68A; }
+}
+.no-subject-warn[hidden] { display: none; }
+.warn-head {
+  color: #92400E;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.no-subject-warn ul {
+  color: #92400E;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 /* Spinner */
 .spin {
   animation: rot .7s linear infinite;
@@ -279,6 +306,10 @@ select:disabled, input:disabled {
       <div id="progressWrap" class="progress-wrap" hidden>
         <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
         <div class="progress-label" id="progressLabel"></div>
+      </div>
+      <div id="noSubjectWarn" class="no-subject-warn" hidden>
+        <div class="warn-head">⚠ No subjects assigned for these students</div>
+        <ul id="noSubjectList"></ul>
       </div>
     </div>
   </div>
@@ -464,6 +495,7 @@ async function generate() {
   const today = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
 
   $('genBtn').disabled = true;
+  $('noSubjectWarn').hidden = true;
   setStatus('Students fetch हो रहे हैं…');
   setProgress(0, '');
 
@@ -482,9 +514,11 @@ async function generate() {
 
     // Build rows — one per student per subject
     const rows = [];
+    const noSubjectStudents = [];
     for (const s of students) {
       const subjects = s.subjects || [];
       if (!subjects.length) {
+        noSubjectStudents.push(s.regNo);
         rows.push({
           regNo: s.regNo,
           'Exam Calendar': examCalName,
@@ -503,6 +537,17 @@ async function generate() {
           });
         }
       }
+    }
+
+    // Show warning for students with no subjects
+    const warnBox = $('noSubjectWarn');
+    const warnList = $('noSubjectList');
+    if (noSubjectStudents.length) {
+      warnList.innerHTML = noSubjectStudents
+        .map(r => `<li>${r} — no subjects assigned</li>`).join('');
+      warnBox.hidden = false;
+    } else {
+      warnBox.hidden = true;
     }
 
     // Build workbook
