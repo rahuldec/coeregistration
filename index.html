@@ -164,6 +164,30 @@ select:disabled, input:disabled {
 .btn-primary:active:not(:disabled) { transform: scale(0.985); }
 .btn-primary:disabled { cursor: not-allowed; opacity: .48; }
 
+.btn-row { display: flex; gap: 0.75rem; }
+.btn-row .btn-primary { flex: 1; }
+.btn-secondary {
+  align-items: center;
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  justify-content: center;
+  letter-spacing: -0.01em;
+  padding: 0.875rem 1.25rem;
+  transition: border-color .15s, background .15s;
+  white-space: nowrap;
+}
+.btn-secondary:hover:not(:disabled) { background: var(--accent-bg); border-color: var(--accent); }
+.btn-secondary:disabled { cursor: not-allowed; opacity: .48; }
+@media (max-width: 480px) { .btn-row { flex-direction: column; } }
+
 /* Status */
 .status {
   align-items: flex-start;
@@ -441,9 +465,14 @@ select:disabled, input:disabled {
   <div class="card" style="overflow:visible">
     <div class="card-head"><span>📥</span> Generate Excel</div>
     <div class="card-body">
-      <button class="btn-primary" id="genBtn" disabled onclick="generate()">
-        ⬇ Generate &amp; Download Excel
-      </button>
+      <div class="btn-row">
+        <button class="btn-primary" id="uploadDirectBtn" disabled onclick="generate('upload')">
+          ⬆ Upload to System
+        </button>
+        <button class="btn-secondary" id="downloadBtn" disabled onclick="generate('download')">
+          ⬇ Download Excel
+        </button>
+      </div>
       <div id="status" class="status" hidden></div>
       <div id="progressWrap" class="progress-wrap" hidden>
         <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
@@ -634,13 +663,15 @@ function onStreamSelected(streamName) {
 }
 
 function checkReady() {
-  const ok =
+  const ok = !!(
     $('examCalendar').value &&
     $('examType').value &&
     $('course').value &&
     selectedStreamVal &&
-    $('batch').value;
-  $('genBtn').disabled = !ok;
+    $('batch').value
+  );
+  $('uploadDirectBtn').disabled = !ok;
+  $('downloadBtn').disabled = !ok;
 }
 
 /* ── Stream dropdown helpers ─────────────────────────────── */
@@ -748,96 +779,96 @@ async function fetchAllStudents(course, stream, batch) {
 }
 
 /* ── Generate Excel ──────────────────────────────────────── */
-async function generate() {
-  const calSel         = $('examCalendar');
-  const examCalName    = calSel.options[calSel.selectedIndex]?.dataset?.name || '';
-  const examType       = $('examType').value;
-  const course         = $('course').value;
-  const stream         = selectedStreamVal;
-  const batch          = $('batch').value;
+async function generate(mode) {
+  const calSel      = $('examCalendar');
+  const examCalName = calSel.options[calSel.selectedIndex]?.dataset?.name || '';
+  const examType    = $('examType').value;
+  const course      = $('course').value;
+  const stream      = selectedStreamVal;
+  const batch       = $('batch').value;
   const d = new Date();
   const today = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 
-  $('genBtn').disabled = true;
+  $('uploadDirectBtn').disabled = true;
+  $('downloadBtn').disabled = true;
   $('noSubjectWarn').hidden = true;
   setStatus('Students fetch हो रहे हैं…');
   setProgress(0, '');
 
   try {
-    const { students, total } = await fetchAllStudents(course, stream, batch);
+    const { students } = await fetchAllStudents(course, stream, batch);
 
     if (!students.length) {
       setStatus('इस selection में कोई students नहीं मिले।', 'err');
       setProgress(null);
-      $('genBtn').disabled = false;
+      checkReady();
       return;
     }
 
     setStatus('Excel file बन रही है…');
     setProgress(97, 'Rows generate हो रहे हैं…');
 
-    // Build rows — one per student per subject
     const rows = [];
     const noSubjectStudents = [];
     for (const s of students) {
       const subjects = s.subjects || [];
       if (!subjects.length) {
         noSubjectStudents.push(s.regNo);
-        rows.push({
-          regNo: s.regNo,
-          'Exam Calendar': examCalName,
-          'Exam Type': examType,
-          'Subject Code': '',
-          registrationDate: today,
-        });
+        rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': '', registrationDate: today });
       } else {
         for (const sub of subjects) {
-          rows.push({
-            regNo: s.regNo,
-            'Exam Calendar': examCalName,
-            'Exam Type': examType,
-            'Subject Code': sub.code || '',
-            registrationDate: today,
-          });
+          rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': sub.code || '', registrationDate: today });
         }
       }
     }
 
-    // Show warning for students with no subjects
-    const warnBox = $('noSubjectWarn');
     const warnList = $('noSubjectList');
     if (noSubjectStudents.length) {
-      warnList.innerHTML = noSubjectStudents
-        .map(r => `<li>${r} — no subjects assigned</li>`).join('');
-      warnBox.hidden = false;
+      warnList.innerHTML = noSubjectStudents.map(r => `<li>${r} — no subjects assigned</li>`).join('');
+      $('noSubjectWarn').hidden = false;
     } else {
-      warnBox.hidden = true;
+      $('noSubjectWarn').hidden = true;
     }
 
-    // Build workbook
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [
-      { wch: 16 },  // regNo
-      { wch: 50 },  // Exam Calendar
-      { wch: 14 },  // Exam Type
-      { wch: 20 },  // Subject Code
-      { wch: 18 },  // registrationDate
-    ];
+    ws['!cols'] = [{ wch: 16 }, { wch: 50 }, { wch: 14 }, { wch: 20 }, { wch: 18 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Exam Registration');
 
     const safe = v => v.replace(/[^a-zA-Z0-9]/g, '_');
     const filename = `ExamReg_${safe(stream)}_${safe(batch)}_${today}.xlsx`;
-    XLSX.writeFile(wb, filename);
 
-    setProgress(100, `${rows.length} rows · ${students.length} students`);
-    setStatus(
-      `✓ Excel download हो गई — ${rows.length} rows (${students.length} students, subject-wise)`, 'ok');
+    if (mode === 'download') {
+      XLSX.writeFile(wb, filename);
+      setProgress(100, `${rows.length} rows · ${students.length} students`);
+      setStatus(`✓ Excel download हो गई — ${rows.length} rows (${students.length} students)`, 'ok');
+    } else {
+      // Upload directly to system
+      setStatus('System पर upload हो रहा है…');
+      setProgress(98, 'Uploading…');
+
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob  = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const fd    = new FormData();
+      fd.append('image', blob, filename);
+
+      const url = `https://academic-api.odpay.in/api/uploadSheet/examRegistration?entity=${getEntity()}&session=${encodeURIComponent(getSess())}`;
+      const r = await fetch(url, { method: 'POST', headers: { Authorization: getToken() }, body: fd });
+      const data = await r.json().catch(() => ({}));
+
+      if (r.ok) {
+        setProgress(100, `${rows.length} rows · ${students.length} students`);
+        setStatus(`✓ Upload successful! ${data.message || data.msg || ''}`, 'ok');
+      } else {
+        setProgress(null);
+        setStatus(`Upload failed (${r.status}): ${data.message || data.msg || 'Unknown error'}`, 'err');
+      }
+    }
   } catch (e) {
     setStatus('Error: ' + e.message, 'err');
     setProgress(null);
   } finally {
-    $('genBtn').disabled = false;
+    checkReady();
   }
 }
 
