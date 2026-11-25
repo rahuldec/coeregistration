@@ -343,6 +343,16 @@ select:disabled, input:disabled {
 .pend-low  { background: #DCFCE7; color: #166534; }
 #pendingBody.collapsed { display: none; }
 #pendingChevron.open { transform: rotate(180deg); }
+.pend-hint { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 0.75rem; }
+.pend-upload-btn {
+  background: var(--accent); border: none; border-radius: 6px; color: #fff;
+  cursor: pointer; font-size: 0.75rem; font-weight: 600; padding: 0.3rem 0.7rem;
+  transition: opacity .15s; white-space: nowrap;
+}
+.pend-upload-btn:hover:not(:disabled) { opacity: 0.82; }
+.pend-upload-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+.pend-upload-done { background: var(--success) !important; }
+.pend-upload-err  { background: var(--error) !important; }
 
 /* Spinner */
 .spin {
@@ -378,13 +388,13 @@ select:disabled, input:disabled {
       <div class="form-grid">
         <div class="fg">
           <label>Exam Calendar *</label>
-          <select id="examCalendar" disabled onchange="checkReady()">
+          <select id="examCalendar" disabled onchange="checkReady(); if(Object.keys(pendingTree).length) renderPendingTable();">
             <option value="">— Loading… —</option>
           </select>
         </div>
         <div class="fg">
           <label>Exam Type *</label>
-          <select id="examType" onchange="checkReady()">
+          <select id="examType" onchange="checkReady(); if(Object.keys(pendingTree).length) renderPendingTable();">
             <option value="">— Select —</option>
             <option value="regular">Regular</option>
             <option value="backlog">Backlog</option>
@@ -580,27 +590,36 @@ async function loadPendingCounts() {
 
 function tierClass(n) { return n >= 50 ? 'pend-high' : n >= 20 ? 'pend-med' : 'pend-low'; }
 
+function calAndTypeReady() {
+  return $('examCalendar').value && $('examType').value;
+}
+
 function renderPendingTable() {
   const courses = Object.keys(pendingTree).sort();
   let total = 0;
-  let html = '<table class="pend-table"><thead><tr><th>Course / Stream / Batch</th><th>Section</th><th>Pending</th></tr></thead><tbody>';
+  const canUpload = calAndTypeReady();
+  const hint = canUpload ? '' : '<p class="pend-hint">⚠ Select Exam Calendar &amp; Type above to enable row uploads.</p>';
+  let html = hint + '<table class="pend-table"><thead><tr><th>Course / Stream / Batch</th><th>Section</th><th>Pending</th><th></th></tr></thead><tbody>';
   for (const course of courses) {
     const streams = Object.keys(pendingTree[course]).sort();
     let courseTotal = 0;
     streams.forEach(st => Object.values(pendingTree[course][st]).forEach(secs => Object.values(secs).forEach(n => courseTotal += n)));
     total += courseTotal;
-    html += `<tr><td class="pend-course" colspan="3">${esc(course)} <span class="pend-badge ${tierClass(courseTotal)}">${courseTotal}</span></td></tr>`;
+    html += `<tr><td class="pend-course" colspan="4">${esc(course)} <span class="pend-badge ${tierClass(courseTotal)}">${courseTotal}</span></td></tr>`;
     for (const stream of streams) {
       const batches = Object.keys(pendingTree[course][stream]).sort();
       let streamTotal = 0;
       batches.forEach(b => Object.values(pendingTree[course][stream][b]).forEach(n => streamTotal += n));
-      html += `<tr><td class="pend-stream" colspan="3">${esc(stream)} <span class="pend-badge ${tierClass(streamTotal)}">${streamTotal}</span></td></tr>`;
+      html += `<tr><td class="pend-stream" colspan="4">${esc(stream)} <span class="pend-badge ${tierClass(streamTotal)}">${streamTotal}</span></td></tr>`;
       for (const batch of batches) {
         const sections = Object.keys(pendingTree[course][stream][batch]).sort();
-        for (const sec of sections) {
-          const cnt = pendingTree[course][stream][batch][sec];
-          html += `<tr class="pend-row"><td>${esc(batch)}</td><td>${esc(sec)}</td><td><span class="pend-badge ${tierClass(cnt)}">${cnt}</span></td></tr>`;
-        }
+        const batchTotal = sections.reduce((s, sec) => s + pendingTree[course][stream][batch][sec], 0);
+        const secLabels = sections.map(s => esc(s)).join(', ');
+        const btnId = `pb_${btoa(stream + '|' + batch).replace(/[^a-zA-Z0-9]/g,'')}`;
+        const btn = canUpload
+          ? `<button class="pend-upload-btn" id="${btnId}" onclick='uploadBatch(${JSON.stringify(stream)},${JSON.stringify(batch)},this)'>⬆ Upload</button>`
+          : `<button class="pend-upload-btn" disabled>⬆ Upload</button>`;
+        html += `<tr class="pend-row"><td>${esc(batch)}</td><td>${secLabels}</td><td><span class="pend-badge ${tierClass(batchTotal)}">${batchTotal}</span></td><td>${btn}</td></tr>`;
       }
     }
   }
@@ -608,6 +627,75 @@ function renderPendingTable() {
   $('pendingTable').innerHTML = courses.length ? html : '<p style="color:var(--text-muted);font-size:0.875rem">No pending registrations found.</p>';
   $('pendingTotal').textContent = `${total} students pending`;
   $('pendingChevron').classList.add('open');
+}
+
+async function uploadBatch(stream, batch, btn) {
+  const calSel = $('examCalendar');
+  const examCalName = calSel.options[calSel.selectedIndex]?.dataset?.name || calSel.options[calSel.selectedIndex]?.text || '';
+  const examType = $('examType').value;
+  if (!calSel.value || !examType) {
+    alert('Please select Exam Calendar and Exam Type first.');
+    return;
+  }
+
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  try {
+    // Find course for this stream from pendingTree
+    const course = Object.keys(pendingTree).find(c => pendingTree[c][stream]);
+    const { students } = await fetchAllStudents(course, stream, batch);
+
+    if (!students.length) { btn.textContent = '✗ No students'; btn.style.color = 'var(--error)'; return; }
+
+    const rows = [];
+    for (const s of students) {
+      const subjects = s.subjects || [];
+      if (!subjects.length) {
+        rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': '', registrationDate: today });
+      } else {
+        for (const sub of subjects) {
+          rows.push({ regNo: s.regNo, 'Exam Calendar': examCalName, 'Exam Type': examType, 'Subject Code': sub.code || '', registrationDate: today });
+        }
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 16 }, { wch: 50 }, { wch: 14 }, { wch: 20 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Exam Registration');
+    const safe = v => v.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `ExamReg_${safe(stream)}_${safe(batch)}_${today}.xlsx`;
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob  = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const fd    = new FormData();
+    fd.append('file', blob, filename);
+
+    const url = `https://academic-api.odpay.in/api/uploadSheet/examRegistration?entity=${getEntity()}&session=${encodeURIComponent(getSess())}`;
+    const r = await fetch(url, { method: 'POST', headers: { Authorization: getToken() }, body: fd });
+    const rawText = await r.text();
+    let data = {};
+    try { data = JSON.parse(rawText); } catch(_) {}
+
+    if (r.ok) {
+      btn.textContent = '✓ Done';
+      btn.classList.add('pend-upload-done');
+    } else {
+      const detail = data.errors ? data.errors[0] : (data.message || data.msg || rawText || 'Error');
+      btn.textContent = '✗ Failed';
+      btn.title = detail;
+      btn.classList.add('pend-upload-err');
+    }
+  } catch (e) {
+    btn.textContent = '✗ Error';
+    btn.title = e.message;
+    btn.classList.add('pend-upload-err');
+  }
 }
 
 function togglePendingCard() {
