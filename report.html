@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pending Exam Registration Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap">
+<style>
+:root {
+  --bg: #F1F5F9;
+  --surface: #FFFFFF;
+  --border: #E2E8F0;
+  --text: #1E293B;
+  --text-muted: #64748B;
+  --accent: #4338CA;
+  --accent-hover: #3730A3;
+  --accent-bg: #EEF2FF;
+  --success: #059669;
+  --success-bg: #ECFDF5;
+  --error: #DC2626;
+  --error-bg: #FEF2F2;
+  --warn: #D97706;
+  --warn-bg: #FFFBEB;
+  --radius: 11px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F172A;
+    --surface: #1E293B;
+    --border: #2D3F55;
+    --text: #E2E8F0;
+    --text-muted: #94A3B8;
+    --accent: #818CF8;
+    --accent-hover: #A5B4FC;
+    --accent-bg: #1E1B4B;
+    --success: #34D399;
+    --success-bg: #022C22;
+    --error: #F87171;
+    --error-bg: #2D1515;
+    --warn: #FCD34D;
+    --warn-bg: #1C1708;
+    color-scheme: dark;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
+.header {
+  background: var(--accent);
+  color: #fff;
+  padding: 1.25rem 2rem;
+}
+.header h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+}
+.header p { font-size: 0.8125rem; margin: 0; opacity: 0.72; }
+
+.container { max-width: 1100px; margin: 1.5rem auto; padding: 0 1.25rem 2rem; }
+
+/* Summary strip */
+.summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex: 1 1 160px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.stat-label {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+.stat-value {
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 0.25rem;
+}
+.stat-value.red { color: var(--error); }
+
+/* Filters */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.card-head {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  padding: 0.875rem 1.25rem;
+}
+.card-body { padding: 1.25rem; }
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+.fg { display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 160px; min-width: 140px; }
+label {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+select, input[type="text"] {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  transition: border-color .15s;
+  width: 100%;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394A3B8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+  cursor: pointer;
+}
+select:focus, input:focus { border-color: var(--accent); outline: none; }
+.btn-reset {
+  align-self: flex-end;
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0.5rem 1rem;
+  transition: border-color .15s, color .15s;
+  white-space: nowrap;
+}
+.btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Table */
+.tbl-wrap { overflow-x: auto; }
+table {
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  width: 100%;
+}
+thead th {
+  background: var(--bg);
+  border-bottom: 2px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  padding: 0.625rem 1rem;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+thead th.num { text-align: right; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:hover { background: var(--accent-bg); }
+tbody td { padding: 0.5625rem 1rem; vertical-align: middle; }
+tbody td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.badge {
+  background: var(--warn-bg);
+  border-radius: 999px;
+  color: var(--warn);
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.125rem 0.5rem;
+}
+.course-cell { font-weight: 600; color: var(--text); }
+.stream-cell { color: var(--text-muted); padding-left: 1.5rem; }
+.batch-cell { padding-left: 1rem; }
+.section-cell { color: var(--text-muted); font-size: 0.75rem; }
+
+/* Group rows */
+tr.group-course td { background: color-mix(in srgb, var(--accent-bg) 60%, var(--surface)); font-weight: 700; border-top: 2px solid var(--border); }
+tr.group-stream td { background: color-mix(in srgb, var(--accent-bg) 25%, var(--surface)); font-weight: 600; }
+
+/* Status */
+.status {
+  align-items: center;
+  border-radius: 8px;
+  display: flex;
+  font-size: 0.875rem;
+  gap: 0.625rem;
+  padding: 1rem;
+}
+.status.info { background: var(--accent-bg); color: var(--accent); }
+.status.err  { background: var(--error-bg); color: var(--error); }
+.status[hidden] { display: none; }
+
+.spin {
+  animation: rot .7s linear infinite;
+  border: 2.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  height: 1rem;
+  width: 1rem;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.results-meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Pending Exam Registration Report</h1>
+  <p>Sanskaram University · Students whose exam registration is pending</p>
+</div>
+
+<div class="container">
+
+  <div id="statusEl" class="status info">
+    <span class="spin"></span><span>Data load हो रही है…</span>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-strip" id="summaryStrip" hidden>
+    <div class="stat-card">
+      <div class="stat-label">Total Pending</div>
+      <div class="stat-value red" id="statTotal">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Courses</div>
+      <div class="stat-value" id="statCourses">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Streams</div>
+      <div class="stat-value" id="statStreams">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Batches</div>
+      <div class="stat-value" id="statBatches">—</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card" id="filterCard" hidden>
+    <div class="card-head">🔍 Filters</div>
+    <div class="card-body">
+      <div class="filter-row">
+        <div class="fg">
+          <label>Course</label>
+          <select id="fCourse" onchange="applyFilters()">
+            <option value="">All Courses</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Stream (search)</label>
+          <input type="text" id="fStream" placeholder="Type to search stream…" oninput="applyFilters()">
+        </div>
+        <div class="fg">
+          <label>Batch</label>
+          <select id="fBatch" onchange="applyFilters()">
+            <option value="">All Batches</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Section</label>
+          <select id="fSection" onchange="applyFilters()">
+            <option value="">All Sections</option>
+          </select>
+        </div>
+        <button class="btn-reset" onclick="resetFilters()">✕ Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card" id="tableCard" hidden>
+    <div class="card-head">📋 Grouped Summary</div>
+    <div class="card-body" style="padding-bottom:0">
+      <div class="results-meta" id="resultsMeta"></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Stream</th>
+            <th>Batch</th>
+            <th>Section</th>
+            <th class="num">Pending</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="emptyMsg" hidden>No records match the selected filters.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const CONFIG = {
+  entity: '69ca556be787fb0010ffab1f',
+  session: '2026-27 Odd',
+  token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjpbXSwicXVhbGlmaWNhdGlvbnMiOltdLCJ3b3JrRXhwZXJpZW5jZSI6W10sIm1vYmlsZSI6Ijg3OTg5ODk4OTgiLCJwYXNzd29yZCI6Ijg3OTg5ODk4OTgiLCJuYW1lIjoiVXRpbGl0eSIsInBlcm1pc3Npb25Hcm91cE5hbWUiOiJVdGlsaXR5IiwiZW50aXR5R3JvdXAiOlt7Im5hbWUiOiJTYW5za2FyYW0gVW5pdmVyc2l0eSIsImVudGl0eVR5cGUiOiJ1bml2ZXJzaXR5IiwibG9nbyI6Imh0dHBzOi8vb2tpZWRva2llLWVycC1pbWFnZXMuczMuYXAtc291dGgtMS5hbWF6b25hd3MuY29tL1NVLzIwMjYvMDMvbG9nby8yYjI4OTk4ZTg5NTEzMmFlNzc2NS1TYW5za2FyYW1fVW5pdmVyc2l0eS1sb2dvLmpwZWciLCJxYWMiOiJTVSIsImRpc3BsYXlOYW1lIjoiU2Fuc2thcmFtIFVuaXZlcnNpdHkiLCJlbnRpdHlJZCI6IjY5Y2E1NTZiZTc4N2ZiMDAxMGZmYWIxZiJ9XSwiZW50aXR5IjoiNjljYTU1NmJlNzg3ZmIwMDEwZmZhYjFmIiwic2Vzc2lvbiI6IjIwMjYtMjcgT2RkIiwic3RhdHVzIjp0cnVlLCJfaWQiOiI2YjA2ZGUzYTMwNTM0ZjAwMGZkMWJiNGMiLCJ0b2tlblZlcnNpb24iOjEsImlhdCI6MTc5NTYxMjIxOH0.eS1Kf-ErErSztFKK0j0Dv4P3OX6H0WSeZZOsK3nNi-o',
+};
+
+const $ = id => document.getElementById(id);
+
+let allData = [];   // raw student array
+let grouped = [];   // [{course, stream, batch, section, count}]
+
+async function loadData() {
+  try {
+    const r = await fetch(
+      'https://academic-api.odpay.in/api/pendingExamRegistration/examRegistration',
+      {
+        method: 'POST',
+        headers: { Authorization: CONFIG.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity: CONFIG.entity, session: CONFIG.session }),
+      }
+    );
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    allData = Array.isArray(data) ? data : (data.data || []);
+
+    buildGrouped();
+    populateFilters();
+    updateSummary(allData.length);
+    renderTable(grouped);
+
+    $('statusEl').hidden = true;
+    $('summaryStrip').hidden = false;
+    $('filterCard').hidden = false;
+    $('tableCard').hidden = false;
+  } catch (e) {
+    $('statusEl').className = 'status err';
+    $('statusEl').innerHTML = `<span>Error: ${e.message}</span>`;
+  }
+}
+
+function buildGrouped() {
+  const map = {};
+  for (const s of allData) {
+    const key = `${s.course}||${s.stream}||${s.batch}||${s.section}`;
+    if (!map[key]) map[key] = { course: s.course, stream: s.stream, batch: s.batch, section: s.section, count: 0 };
+    map[key].count++;
+  }
+  grouped = Object.values(map).sort((a, b) => {
+    if (a.course !== b.course) return a.course.localeCompare(b.course);
+    if (a.stream !== b.stream) return a.stream.localeCompare(b.stream);
+    if (a.batch !== b.batch) return a.batch.localeCompare(b.batch);
+    return (a.section || '').localeCompare(b.section || '');
+  });
+}
+
+function unique(arr, key) {
+  return [...new Set(arr.map(x => x[key]).filter(Boolean))].sort();
+}
+
+function populateFilters() {
+  const courses  = unique(allData, 'course');
+  const batches  = unique(allData, 'batch');
+  const sections = unique(allData, 'section');
+
+  const fCourse = $('fCourse');
+  courses.forEach(c => fCourse.appendChild(new Option(c, c)));
+
+  const fBatch = $('fBatch');
+  batches.forEach(b => fBatch.appendChild(new Option(b, b)));
+
+  const fSection = $('fSection');
+  sections.forEach(s => fSection.appendChild(new Option(s, s)));
+}
+
+function updateSummary(total) {
+  $('statTotal').textContent   = total.toLocaleString();
+  $('statCourses').textContent = unique(allData, 'course').length;
+  $('statStreams').textContent  = unique(allData, 'stream').length;
+  $('statBatches').textContent  = unique(allData, 'batch').length;
+}
+
+function applyFilters() {
+  const fCourse  = $('fCourse').value.toLowerCase();
+  const fStream  = $('fStream').value.toLowerCase().trim();
+  const fBatch   = $('fBatch').value.toLowerCase();
+  const fSection = $('fSection').value.toLowerCase();
+
+  const filtered = grouped.filter(r => {
+    if (fCourse  && r.course.toLowerCase()  !== fCourse)  return false;
+    if (fStream  && !r.stream.toLowerCase().includes(fStream)) return false;
+    if (fBatch   && r.batch.toLowerCase()   !== fBatch)   return false;
+    if (fSection && (r.section || '').toLowerCase() !== fSection) return false;
+    return true;
+  });
+
+  renderTable(filtered);
+}
+
+function resetFilters() {
+  $('fCourse').value  = '';
+  $('fStream').value  = '';
+  $('fBatch').value   = '';
+  $('fSection').value = '';
+  renderTable(grouped);
+}
+
+function renderTable(rows) {
+  const tbody = $('tbody');
+  const empty = $('emptyMsg');
+  const meta  = $('resultsMeta');
+
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    empty.hidden = false;
+    meta.textContent = '';
+    return;
+  }
+
+  empty.hidden = true;
+  const totalPending = rows.reduce((s, r) => s + r.count, 0);
+  meta.textContent = `${rows.length} groups · ${totalPending.toLocaleString()} pending students`;
+
+  // Build grouped rows with section-level detail
+  let html = '';
+  let prevCourse = null, prevStream = null;
+
+  for (const r of rows) {
+    if (r.course !== prevCourse) {
+      // Course total
+      const courseRows = rows.filter(x => x.course === r.course);
+      const courseTotal = courseRows.reduce((s, x) => s + x.count, 0);
+      html += `<tr class="group-course">
+        <td colspan="4">${esc(r.course)}</td>
+        <td class="num"><span class="badge">${courseTotal}</span></td>
+      </tr>`;
+      prevCourse = r.course;
+      prevStream = null;
+    }
+
+    if (r.stream !== prevStream || r.course !== rows[rows.indexOf(r)-1]?.course) {
+      // Stream total (within this filtered set)
+      const streamRows = rows.filter(x => x.course === r.course && x.stream === r.stream);
+      const streamTotal = streamRows.reduce((s, x) => s + x.count, 0);
+      html += `<tr class="group-stream">
+        <td></td>
+        <td colspan="3" class="stream-cell">↳ ${esc(r.stream)}</td>
+        <td class="num">${streamTotal}</td>
+      </tr>`;
+      prevStream = r.stream;
+    }
+
+    html += `<tr>
+      <td></td>
+      <td></td>
+      <td class="batch-cell">${esc(r.batch || '—')}</td>
+      <td class="section-cell">${esc(r.section || '—')}</td>
+      <td class="num">${r.count}</td>
+    </tr>`;
+  }
+
+  tbody.innerHTML = html;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+window.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>
