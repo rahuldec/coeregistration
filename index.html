@@ -303,6 +303,66 @@ select:disabled, input:disabled {
 .sdd-cnt.c-low  { background: var(--success-bg); color: var(--success); }
 .sdd-empty { color: var(--text-muted); font-size: 0.8125rem; padding: 0.75rem; text-align: center; }
 
+/* Upload card */
+.upload-zone {
+  align-items: center;
+  border: 2px dashed var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  transition: border-color .2s, background .2s;
+  text-align: center;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+.upload-zone input[type="file"] { display: none; }
+.upload-icon { font-size: 2rem; line-height: 1; }
+.upload-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+.upload-label strong { color: var(--accent); cursor: pointer; }
+.upload-filename {
+  align-items: center;
+  background: var(--accent-bg);
+  border-radius: 7px;
+  color: var(--accent);
+  display: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.875rem;
+}
+.upload-filename.show { display: flex; }
+.btn-upload {
+  align-items: center;
+  background: var(--success);
+  border: none;
+  border-radius: 9px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  justify-content: center;
+  letter-spacing: -0.01em;
+  margin-top: 0.875rem;
+  padding: 0.875rem 1.75rem;
+  transition: opacity .15s, transform .1s;
+  width: 100%;
+}
+.btn-upload:hover:not(:disabled) { opacity: 0.88; }
+.btn-upload:active:not(:disabled) { transform: scale(0.985); }
+.btn-upload:disabled { cursor: not-allowed; opacity: .45; }
+
 /* Spinner */
 .spin {
   animation: rot .7s linear infinite;
@@ -378,7 +438,7 @@ select:disabled, input:disabled {
   </div>
 
   <!-- Step 2: Generate -->
-  <div class="card">
+  <div class="card" style="overflow:visible">
     <div class="card-head"><span>📥</span> Generate Excel</div>
     <div class="card-body">
       <button class="btn-primary" id="genBtn" disabled onclick="generate()">
@@ -393,6 +453,30 @@ select:disabled, input:disabled {
         <div class="warn-head">⚠ No subjects assigned for these students</div>
         <ul id="noSubjectList"></ul>
       </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Upload -->
+  <div class="card">
+    <div class="card-head"><span>📤</span> Upload Excel to System</div>
+    <div class="card-body">
+      <div class="upload-zone" id="uploadZone"
+        onclick="$('fileInput').click()"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <div class="upload-icon">📂</div>
+        <div class="upload-label">
+          <strong>Click to browse</strong> or drag &amp; drop Excel file here
+        </div>
+        <div style="color:var(--text-muted);font-size:0.75rem">.xlsx / .xls files only</div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="onFileSelect(event)">
+      </div>
+      <div class="upload-filename" id="uploadFilename">
+        <span>📄</span><span id="uploadFilenameText"></span>
+      </div>
+      <button class="btn-upload" id="uploadBtn" disabled onclick="uploadExcel()">
+        ⬆ Upload to System
+      </button>
+      <div id="uploadStatus" class="status" hidden></div>
     </div>
   </div>
 
@@ -754,6 +838,86 @@ async function generate() {
     setProgress(null);
   } finally {
     $('genBtn').disabled = false;
+  }
+}
+
+/* ── Upload Excel ────────────────────────────────────────── */
+let selectedFile = null;
+
+function setUploadStatus(msg, type) {
+  const el = $('uploadStatus');
+  if (!msg) { el.hidden = true; return; }
+  el.hidden = false;
+  el.className = 'status ' + (type || 'info');
+  el.innerHTML = type === 'info'
+    ? `<span class="spin"></span><span>${msg}</span>`
+    : `<span>${msg}</span>`;
+}
+
+function onFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  setSelectedFile(file);
+}
+
+function setSelectedFile(file) {
+  selectedFile = file;
+  $('uploadFilenameText').textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  $('uploadFilename').classList.add('show');
+  $('uploadBtn').disabled = false;
+  setUploadStatus('');
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  $('uploadZone').classList.add('drag-over');
+}
+function onDragLeave(e) {
+  $('uploadZone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  $('uploadZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+    setSelectedFile(file);
+  } else {
+    setUploadStatus('कृपया Excel file (.xlsx / .xls) ही upload करें।', 'err');
+  }
+}
+
+async function uploadExcel() {
+  if (!selectedFile) return;
+  $('uploadBtn').disabled = true;
+  setUploadStatus('File upload हो रही है…');
+
+  const fd = new FormData();
+  fd.append('image', selectedFile, selectedFile.name);
+
+  const url = `https://academic-api.odpay.in/api/uploadSheet/examRegistration?entity=${getEntity()}&session=${encodeURIComponent(getSess())}`;
+
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: getToken() },
+      body: fd,
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) {
+      setUploadStatus(
+        `✓ Upload successful! ${data.message || data.msg || 'File processed.'}`, 'ok');
+      // Reset file picker
+      selectedFile = null;
+      $('fileInput').value = '';
+      $('uploadFilename').classList.remove('show');
+    } else {
+      setUploadStatus(
+        `Error ${r.status}: ${data.message || data.msg || 'Upload failed.'}`, 'err');
+    }
+  } catch (e) {
+    setUploadStatus('Network error: ' + e.message, 'err');
+  } finally {
+    $('uploadBtn').disabled = !selectedFile;
   }
 }
 
